@@ -1,0 +1,158 @@
+import {
+  CommandHandler,
+  CommandHandlerPayload,
+  CommandResult,
+} from "./CommandHandler";
+import { AudioEngine } from "../../audio/AudioEngine";
+import { CommandHistory } from "../CommandHistory";
+import { CommandType } from "../types";
+import { AddMarkerCommand } from "../impl/AddMarkerCommand";
+import { RemoveMarkerCommand } from "../impl/RemoveMarkerCommand";
+import { MoveMarkerCommand } from "../impl/MoveMarkerCommand";
+
+/**
+ * Marker Command Handler
+ */
+export class MarkerHandler implements CommandHandler {
+  private readonly supportedCommands = new Set<string>([
+    CommandType.ADD_MARKER,
+    CommandType.REMOVE_MARKER,
+    CommandType.MOVE_MARKER,
+    CommandType.LIST_MARKERS,
+    CommandType.GOTO_NEXT_MARKER,
+    CommandType.GOTO_PREV_MARKER,
+    CommandType.RENAME_MARKER,
+    CommandType.SET_MARKER_LOCKED,
+  ]);
+
+  canHandle(commandType: string): boolean {
+    return this.supportedCommands.has(commandType);
+  }
+
+  async execute(
+    commandType: string,
+    payload: CommandHandlerPayload | undefined,
+    audioEngine: AudioEngine,
+    history: CommandHistory,
+  ): Promise<CommandResult> {
+    if (!payload) {
+      return { success: false, message: `${commandType} requires a payload` };
+    }
+
+    switch (commandType) {
+      case CommandType.ADD_MARKER: {
+        const cmd = new AddMarkerCommand(
+          payload.name as string,
+          payload.position as number,
+          payload.color as string | undefined,
+        );
+        await history.execute(cmd);
+        return {
+          success: true,
+          message: `Added marker "${payload.name}" at frame ${payload.position}`,
+        };
+      }
+
+      case CommandType.REMOVE_MARKER: {
+        const cmd = new RemoveMarkerCommand(payload.markerId as string);
+        await history.execute(cmd);
+        return { success: true, message: `Removed marker ${payload.markerId}` };
+      }
+
+      case CommandType.MOVE_MARKER: {
+        const cmd = new MoveMarkerCommand(
+          payload.markerId as string,
+          payload.position as number,
+        );
+        await history.execute(cmd);
+        return {
+          success: true,
+          message: `Moved marker to frame ${payload.position}`,
+        };
+      }
+
+      case CommandType.LIST_MARKERS: {
+        const markers = audioEngine.session.markers.map((m) => ({
+          id: m.id,
+          name: m.name,
+          position: m.position,
+          time: (m.position / audioEngine.session.sampleRate).toFixed(2) + "s",
+          color: m.color,
+          locked: m.locked,
+        }));
+        return {
+          success: true,
+          message: `${markers.length} marker(s)`,
+          data: markers,
+        };
+      }
+
+      case CommandType.GOTO_NEXT_MARKER: {
+        const currentFrame = audioEngine.getCurrentFrame();
+        const nextMarker = audioEngine.session.getNextMarker(currentFrame);
+        if (nextMarker) {
+          audioEngine.seek(
+            nextMarker.position / audioEngine.session.sampleRate,
+          );
+          return {
+            success: true,
+            message: `Jumped to marker "${nextMarker.name}"`,
+          };
+        }
+        return { success: false, message: "No next marker" };
+      }
+
+      case CommandType.GOTO_PREV_MARKER: {
+        const currentFrame = audioEngine.getCurrentFrame();
+        const prevMarker = audioEngine.session.getPreviousMarker(currentFrame);
+        if (prevMarker) {
+          audioEngine.seek(
+            prevMarker.position / audioEngine.session.sampleRate,
+          );
+          return {
+            success: true,
+            message: `Jumped to marker "${prevMarker.name}"`,
+          };
+        }
+        return { success: false, message: "No previous marker" };
+      }
+
+      case CommandType.RENAME_MARKER: {
+        const marker = audioEngine.session.getMarker(
+          payload.markerId as string,
+        );
+        if (!marker) {
+          return {
+            success: false,
+            message: `Marker not found: ${payload.markerId}`,
+          };
+        }
+        marker.name = payload.name as string;
+        return {
+          success: true,
+          message: `Marker renamed to "${payload.name}"`,
+        };
+      }
+
+      case CommandType.SET_MARKER_LOCKED: {
+        const marker = audioEngine.session.getMarker(
+          payload.markerId as string,
+        );
+        if (!marker) {
+          return {
+            success: false,
+            message: `Marker not found: ${payload.markerId}`,
+          };
+        }
+        marker.locked = payload.locked as boolean;
+        return {
+          success: true,
+          message: `Marker ${payload.locked ? "locked" : "unlocked"}`,
+        };
+      }
+
+      default:
+        throw new Error(`Unsupported command: ${commandType}`);
+    }
+  }
+}

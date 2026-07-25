@@ -1,0 +1,55 @@
+{
+  "name": "@drop-ai/ui-utils",
+  "version": "1.0.0",
+  "description": "Framework-agnostic UI utilities for building DAW interfaces on top of @drop-ai/core",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@drop-ai/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  },
+  "keywords": [
+    "daw",
+    "audio",
+    "ui",
+    "waveform",
+    "timeline",
+    "viewport"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HURRAEY/daw-engine",
+    "directory": "ui-utils"
+  }
+}

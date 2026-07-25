@@ -1,0 +1,1331 @@
+import { AudioProvider } from "./AudioProvider";
+import { Session, SessionSnapshot } from "../domain/Session";
+import { Track, TrackType } from "../domain/Track";
+import { Region } from "../domain/Region";
+import { MidiRegion } from "../domain/MidiRegion";
+import { MidiNote } from "../domain/MidiNote";
+import { RegionDTO, MidiRegionDTO } from "./dto";
+import { RegionId } from "../domain/types";
+import { ExportConfig } from "../domain/ExportConfig";
+import { ExportStatus } from "../domain/ExportStatus";
+import { MeterData } from "../domain/MeterData";
+import {
+  MidiInput,
+  MidiNoteOnEvent,
+  MidiNoteOffEvent,
+} from "../midi/MidiInput";
+import { Processor } from "../processing/Processor";
+import { GainProcessor } from "../processing/GainProcessor";
+import { PanProcessor } from "../processing/PanProcessor";
+import { Panner } from "../processing/Panner";
+import { PolarityProcessor } from "../processing/PolarityProcessor";
+import { SendProcessor } from "../processing/SendProcessor";
+import { MeterProcessor } from "../processing/MeterProcessor";
+import { PluginInsert } from "../processing/PluginInsert";
+import { AutomationList } from "../automation/AutomationList";
+import { SendBus } from "../domain/SendBus";
+import { Source } from "../domain/Source";
+import { MonitorMode } from "../domain/MonitorMode";
+import { logger } from "../utils/Logger";
+
+export class AudioEngine {
+  private static instance: AudioEngine | undefined;
+  private backend: AudioProvider;
+  public session: Session;
+
+  // MIDI Recording State
+  private midiInput: MidiInput;
+  private midiRecordingNotes: Map<
+    string,
+    { pitch: number; velocity: number; channel: number; startFrame: number }
+  > = new Map();
+  private midiRecordedNotes: MidiNote[] = [];
+  private midiNoteOnSub: { dispose: () => void } | null = null;
+  private midiNoteOffSub: { dispose: () => void } | null = null;
+
+  /** Signal disconnect handles for cleanup on dispose */
+  private signalDisposers: Array<{ dispose: () => void }> = [];
+  /** Per-track signal disposers — cleaned up when a track is removed */
+  private trackDisposers: Map<string, Array<{ dispose: () => void }>> =
+    new Map();
+  /** Per-SendBus signal disposers — cleaned up when a send bus is removed */
+  private sendBusDisposers: Map<string, Array<{ dispose: () => void }>> =
+    new Map();
+
+  private constructor(backend: AudioProvider) {
+    this.session = new Session(crypto.randomUUID(), "Untitled Session");
+    this.backend = backend;
+    this.midiInput = MidiInput.getInstance();
+
+    this.setupSessionListeners();
+  }
+
+  public static getInstance(backend?: AudioProvider): AudioEngine {
+    if (!AudioEngine.instance) {
+      if (!backend)
+        throw new Error(
+          "AudioEngine requires a backend on first initialization",
+        );
+      AudioEngine.instance = new AudioEngine(backend);
+    }
+    return AudioEngine.instance;
+  }
+
+  /** Reset the singleton instance. For testing only. */
+  public static resetInstance(): void {
+    if (AudioEngine.instance) {
+      AudioEngine.instance.dispose();
+    }
+    AudioEngine.instance = undefined;
+  }
+
+  /** Dispose all listeners and internal state to prevent memory leaks. */
+  private dispose(): void {
+    this.stopMidiRecording();
+    if (this.syncId !== null) {
+      this.cancelFrame(this.syncId);
+      this.syncId = null;
+    }
+    this.signalDisposers.forEach((d) => d.dispose());
+    this.signalDisposers = [];
+    this.trackDisposers.forEach((disposers) =>
+      disposers.forEach((d) => d.dispose()),
+    );
+    this.trackDisposers.clear();
+    this.sendBusDisposers.forEach((disposers) =>
+      disposers.forEach((d) => d.dispose()),
+    );
+    this.sendBusDisposers.clear();
+  }
+
+  public setBackend(backend: AudioProvider) {
+    this.backend = backend;
+    // Re-setup listeners/state if backend changes (omitted for brevity)
+  }
+
+  /**
+   * Pre-cache a decoded AudioBuffer so subsequent addSource/getAudioBuffer
+   * calls for the same URL hit the cache instead of re-fetching.
+   * Useful when the source was loaded from a blob URL that will be revoked.
+   */
+  public precacheAudioBuffer(url: string, buffer: AudioBuffer): void {
+    this.backend.addAudioBuffer(url, buffer);
+  }
+
+  public getEngineType(): "Worklet" | "ToneFallback" {
+    return this.backend.getEngineType();
+  }
+
+  public getCurrentTime(): number {
+    return this.backend.getCurrentTime();
+  }
+
+  public getCurrentFrame(): number {
+    return this.backend.getCurrentFrame();
+  }
+
+  public seek(time: number): void {
+    this.backend.seek(time);
+    // Sync session transport frame immediately
+    // This ensures that commands (like SplitAtPlayhead) relying on session.transportFrame
+    // have the correct position even when the transport is paused.
+    const frame = Math.floor(time * this.session.sampleRate);
+    this.session.locateTransport(frame);
+  }
+
+  /**
+   * Convert a Region domain object to a plain RegionDTO safe for postMessage.
+   * Only copies the properties defined in the RegionDTO interface, avoiding
+   * non-serialisable fields like Signal instances that would cause DataCloneError.
+   */
+  private static toRegionDTO(r: Region): RegionDTO {
+    return {
+      id: r.id,
+      sourceId: r.sourceId,
+      start: r.start,
+      length: r.length,
+      end: r.end,
+      sourceStart: r.sourceStart,
+      name: r.name,
+      gain: r.gain,
+      muted: r.muted,
+      layer: r.layer,
+      fadeIn: r.fadeIn,
+      fadeOut: r.fadeOut,
+      playbackRate: r.playbackRate,
+      stretch: r.stretch,
+      pitchSemitones: r.pitchSemitones,
+      timeDomain: r.timeDomain,
+    };
+  }
+
+  public updateRegion(trackId: string, _region: RegionDTO | Region) {
+    const track = this.session.getTrack(trackId);
+    if (track) {
+      const regions = track.playlist.getRegions();
+      const regionsDTO: RegionDTO[] = regions.map((r) =>
+        AudioEngine.toRegionDTO(r),
+      );
+      this.backend.updateRegions(trackId, regionsDTO);
+    }
+  }
+
+  private setupSessionListeners() {
+    // Register Master Bus IO with backend
+    const masterBus = this.session.masterBus;
+    this.backend.registerMasterIO(masterBus.input.id, masterBus.output.id);
+
+    // Sync master bus processors
+    masterBus.processors.forEach((proc: Processor, index: number) => {
+      const type = this.getProcessorType(proc);
+      this.backend.addMasterProcessor(proc.id, type, index);
+      this.connectMasterProcessorSignals(proc);
+    });
+
+    this.signalDisposers.push(
+      masterBus.processorAdded.connect((proc: Processor) => {
+        const index = masterBus.processors.indexOf(proc);
+        const type = this.getProcessorType(proc);
+        this.backend.addMasterProcessor(proc.id, type, index);
+        this.connectMasterProcessorSignals(proc);
+      }),
+    );
+
+    this.signalDisposers.push(
+      masterBus.processorRemoved.connect((procId: string) => {
+        this.backend.removeMasterProcessor(procId);
+      }),
+    );
+
+    // L-1: Sync loop state to backend (worklet + Tone Transport)
+    this.signalDisposers.push(
+      this.session.loopEnabledChanged.connect((enabled: boolean) => {
+        this.backend.enableLoop(enabled);
+        // Also sync loop range when enabling
+        if (enabled) {
+          const range = this.session.getLoopRange();
+          if (range) {
+            const startSec = range.start / this.session.sampleRate;
+            const endSec = range.end / this.session.sampleRate;
+            this.backend.setLoopRange(startSec, endSec);
+          }
+        }
+      }),
+    );
+
+    this.signalDisposers.push(
+      this.session.loopRangeChanged.connect((rangeId) => {
+        if (rangeId) {
+          const range = this.session.getLoopRange();
+          if (range) {
+            const startSec = range.start / this.session.sampleRate;
+            const endSec = range.end / this.session.sampleRate;
+            this.backend.setLoopRange(startSec, endSec);
+          }
+        }
+      }),
+    );
+
+    // Track Added: Sync backend and subscribe to processor signals
+    this.signalDisposers.push(
+      this.session.trackAdded.connect((track: Track) => {
+        // Use the appropriate backend method based on track type
+        if (track.type === TrackType.AUX) {
+          this.backend.createAuxTrack(
+            track.id,
+            track.name,
+            track.route.input.id,
+            track.route.output.id,
+          );
+        } else if (track.type === TrackType.BUS) {
+          this.backend.createBusTrack(
+            track.id,
+            track.name,
+            track.route.input.id,
+            track.route.output.id,
+          );
+        } else if (track.type === TrackType.MIDI) {
+          this.backend.createMidiTrack(
+            track.id,
+            track.name,
+            track.route.input.id,
+            track.route.output.id,
+          );
+        } else {
+          this.backend.createTrack(
+            track.id,
+            track.name,
+            track.route.input.id,
+            track.route.output.id,
+          );
+        }
+
+        // Sync initial processors
+        track.route.processors.forEach((proc: Processor, index: number) => {
+          const type = this.getProcessorType(proc);
+          this.backend.addProcessor(track.id, proc.id, type, index);
+          this.connectProcessorSignals(track.id, proc);
+        });
+
+        // Per-track disposers for cleanup on track removal
+        const disposers: Array<{ dispose: () => void }> = [];
+
+        // Listen for Processor Graph Changes
+        disposers.push(
+          track.route.processorAdded.connect((proc: Processor) => {
+            // Find index
+            const index = track.route.processors.indexOf(proc);
+            const type = this.getProcessorType(proc);
+            this.backend.addProcessor(track.id, proc.id, type, index);
+            this.connectProcessorSignals(track.id, proc);
+          }),
+        );
+
+        disposers.push(
+          track.route.processorRemoved.connect((procId: string) => {
+            this.backend.removeProcessor(track.id, procId);
+          }),
+        );
+
+        // Listen for Playlist Changes
+        disposers.push(
+          track.playlist.regionAdded.connect((region: Region) => {
+            const dto = AudioEngine.toRegionDTO(region);
+            this.backend.scheduleRegion(track.id, dto);
+          }),
+        );
+
+        disposers.push(
+          track.playlist.regionRemoved.connect((regionId: string) => {
+            // Note: ToneAudioProvider implementation of removeRegion is empty/TODO, but we should call it.
+            this.backend.removeRegion(track.id, regionId);
+          }),
+        );
+
+        // Fix 4: Region changed (ripple edit, move, resize, etc.)
+        disposers.push(
+          track.playlist.regionChanged.connect((region: Region) => {
+            this.updateRegion(track.id, region);
+          }),
+        );
+
+        // Listen for MIDI Playlist Changes
+        disposers.push(
+          track.playlist.midiRegionAdded.connect((midiRegion: MidiRegion) => {
+            const dto: MidiRegionDTO = {
+              id: midiRegion.id,
+              name: midiRegion.name,
+              start: midiRegion.start,
+              length: midiRegion.length,
+              end: midiRegion.end,
+              muted: midiRegion.muted,
+              notes: midiRegion.getNotes().map((n) => ({
+                id: n.id,
+                pitch: n.pitch,
+                velocity: n.velocity,
+                startFrame: n.startFrame,
+                durationFrames: n.durationFrames,
+                channel: n.channel,
+              })),
+            };
+            this.backend.scheduleMidiRegion(track.id, dto);
+          }),
+        );
+
+        disposers.push(
+          track.playlist.midiRegionRemoved.connect((regionId: string) => {
+            this.backend.removeMidiRegion(track.id, regionId);
+          }),
+        );
+
+        this.bindTrackSignals(track, disposers);
+        this.trackDisposers.set(track.id, disposers);
+      }),
+    );
+
+    // Track Removed: Sync backend & clean up subscriptions
+    this.signalDisposers.push(
+      this.session.trackRemoved.connect((trackId: string) => {
+        const disposers = this.trackDisposers.get(trackId);
+        if (disposers) {
+          disposers.forEach((d) => d.dispose());
+          this.trackDisposers.delete(trackId);
+        }
+        this.backend.deleteTrack(trackId);
+      }),
+    );
+
+    // Metronome Signals
+    this.signalDisposers.push(
+      this.session.metronomeChanged.connect((enabled: boolean) => {
+        this.backend.enableMetronome(enabled);
+      }),
+    );
+
+    this.signalDisposers.push(
+      this.session.metronomeVolumeChanged.connect((volume: number) => {
+        this.backend.setMetronomeVolume(volume);
+      }),
+    );
+
+    // Tempo Signal
+    this.signalDisposers.push(
+      this.session.tempoChanged.connect((bpm: number) => {
+        this.backend.setTempo(bpm);
+
+        // Update all regions on all tracks with new DTO (includes playbackRate)
+        this.session.tracks.forEach((track) => {
+          const regions = track.playlist.getRegions();
+          const regionsDTO: RegionDTO[] = regions.map((r) =>
+            AudioEngine.toRegionDTO(r),
+          );
+          this.backend.updateRegions(track.id, regionsDTO);
+        });
+      }),
+    );
+
+    // Source Added
+    this.signalDisposers.push(
+      this.session.sourceAdded.connect((source: Source) => {
+        this.backend.addSource(source);
+      }),
+    );
+
+    // Send Bus Signals
+    this.signalDisposers.push(
+      this.session.sendBusAdded.connect((sendBus: SendBus) => {
+        this.backend.addSendBus(
+          sendBus.id,
+          sendBus.sourceTrackId,
+          sendBus.destId,
+          sendBus.level,
+          sendBus.preFader,
+        );
+
+        const disposers: Array<{ dispose: () => void }> = [];
+
+        // Subscribe to level changes
+        disposers.push(
+          sendBus.levelChanged.connect((levelDb: number) => {
+            this.backend.setSendBusLevel(sendBus.id, levelDb);
+          }),
+        );
+
+        // Subscribe to preFader changes
+        disposers.push(
+          sendBus.preFaderChanged.connect((preFader: boolean) => {
+            this.backend.setSendBusPreFader(sendBus.id, preFader);
+          }),
+        );
+
+        // Subscribe to active changes
+        disposers.push(
+          sendBus.activeChanged.connect((active: boolean) => {
+            this.backend.setSendBusActive(sendBus.id, active);
+          }),
+        );
+
+        this.sendBusDisposers.set(sendBus.id, disposers);
+      }),
+    );
+
+    this.signalDisposers.push(
+      this.session.sendBusRemoved.connect((sendBusId: string) => {
+        const disposers = this.sendBusDisposers.get(sendBusId);
+        if (disposers) {
+          disposers.forEach((d) => d.dispose());
+          this.sendBusDisposers.delete(sendBusId);
+        }
+        this.backend.removeSendBus(sendBusId);
+      }),
+    );
+
+    // Monitor Changed Setup (Initial tracks)
+    this.session.tracks.forEach((t) => {
+      const disposers: Array<{ dispose: () => void }> = [];
+      this.bindTrackSignals(t, disposers);
+      if (disposers.length > 0) {
+        const existing = this.trackDisposers.get(t.id);
+        if (existing) {
+          existing.push(...disposers);
+        } else {
+          this.trackDisposers.set(t.id, disposers);
+        }
+      }
+    });
+  }
+
+  private bindTrackSignals(
+    track: Track,
+    disposers: Array<{ dispose: () => void }> = [],
+  ) {
+    if (track.monitorChanged) {
+      disposers.push(
+        track.monitorChanged.connect((enabled: boolean) => {
+          this.backend.setMonitor(track.id, enabled);
+        }),
+      );
+    }
+
+    // Mute / Solo
+    disposers.push(
+      track.muteChanged.connect((muted: boolean) => {
+        this.backend.setTrackMute(track.id, muted);
+      }),
+    );
+    disposers.push(
+      track.soloChanged.connect((soloed: boolean) => {
+        this.backend.setTrackSolo(track.id, soloed);
+      }),
+    );
+
+    // Solo Isolate / Solo Safe
+    disposers.push(
+      track.soloIsolateChanged.connect((isolate: boolean) => {
+        this.backend.setTrackSoloIsolate(track.id, isolate);
+      }),
+    );
+    disposers.push(
+      track.soloSafeChanged.connect((safe: boolean) => {
+        this.backend.setTrackSoloSafe(track.id, safe);
+      }),
+    );
+
+    // Monitor Mode
+    disposers.push(
+      track.monitorModeChanged.connect((mode: MonitorMode) => {
+        this.backend.setMonitorMode(track.id, mode);
+      }),
+    );
+
+    // IO Signals
+    if (track.route) {
+      const route = track.route;
+
+      if (route.output && route.output.connected) {
+        disposers.push(
+          route.output.connected.connect((destId: string) => {
+            this.backend.connectIO(route.output.id, destId);
+          }),
+        );
+        disposers.push(
+          route.output.disconnected.connect((destId: string) => {
+            this.backend.disconnectIO(route.output.id, destId);
+          }),
+        );
+      }
+
+      if (route.input && route.input.connected) {
+        disposers.push(
+          route.input.connected.connect((destId: string) => {
+            this.backend.connectIO(route.input.id, destId);
+          }),
+        );
+        disposers.push(
+          route.input.disconnected.connect((destId: string) => {
+            this.backend.disconnectIO(route.input.id, destId);
+          }),
+        );
+      }
+    }
+  }
+
+  private getProcessorType(proc: Processor): string {
+    if (proc instanceof GainProcessor) {
+      return proc.name === "Trim" ? "Trim" : "Fader";
+    }
+    if (proc instanceof Panner) return "Panner";
+    if (proc instanceof PanProcessor) return "Panner";
+    if (proc instanceof PolarityProcessor) return "Polarity";
+    if (proc instanceof SendProcessor) return "Send";
+    if (proc instanceof MeterProcessor) return "Meter";
+    if (proc instanceof PluginInsert) return `Insert: ${proc.plugin.name}`;
+    return "Unknown";
+  }
+
+  private connectMasterProcessorSignals(proc: Processor) {
+    if (proc instanceof GainProcessor) {
+      proc.gainChanged.connect((val: number) => {
+        this.backend.setMasterGain(val);
+      });
+    }
+    if (
+      proc instanceof PluginInsert &&
+      proc.plugin &&
+      proc.plugin.parameterChanged
+    ) {
+      proc.plugin.parameterChanged.connect(
+        ({ id, value }: { id: string; value: number }) => {
+          this.backend.setMasterProcessorParameter(proc.id, id, value);
+        },
+      );
+    }
+  }
+
+  private connectProcessorSignals(trackId: string, proc: Processor) {
+    if (proc instanceof GainProcessor) {
+      proc.gainChanged.connect((val: number) => {
+        this.backend.setProcessorParameter(trackId, proc.id, "gain", val);
+      });
+    }
+    if (proc instanceof Panner) {
+      proc.azimuthChanged.connect((val: number) => {
+        this.backend.setProcessorParameter(trackId, proc.id, "pan", val);
+      });
+      proc.widthChanged.connect((val: number) => {
+        this.backend.setProcessorParameter(trackId, proc.id, "width", val);
+      });
+    } else if (proc instanceof PanProcessor) {
+      proc.panChanged.connect((val: number) => {
+        this.backend.setProcessorParameter(trackId, proc.id, "pan", val);
+      });
+      proc.widthChanged.connect((val: number) => {
+        this.backend.setProcessorParameter(trackId, proc.id, "width", val);
+      });
+    }
+    if (proc instanceof PolarityProcessor) {
+      proc.polarityChanged.connect((inverted: boolean) => {
+        this.backend.setProcessorParameter(
+          trackId,
+          proc.id,
+          "polarity",
+          inverted ? 1 : 0,
+        );
+      });
+    }
+    if (proc instanceof SendProcessor) {
+      proc.levelChanged.connect((val: number) => {
+        this.backend.setProcessorParameter(trackId, proc.id, "level", val);
+      });
+      proc.preFaderChanged.connect((preFader: boolean) => {
+        this.backend.setProcessorParameter(
+          trackId,
+          proc.id,
+          "preFader",
+          preFader ? 1 : 0,
+        );
+      });
+      proc.muteChanged.connect((muted: boolean) => {
+        this.backend.setProcessorParameter(
+          trackId,
+          proc.id,
+          "muted",
+          muted ? 1 : 0,
+        );
+      });
+    }
+
+    // Plugin Signals
+    if (
+      proc instanceof PluginInsert &&
+      proc.plugin &&
+      proc.plugin.parameterChanged
+    ) {
+      proc.plugin.parameterChanged.connect(
+        ({ id, value }: { id: string; value: number }) => {
+          this.backend.setProcessorParameter(trackId, proc.id, id, value);
+        },
+      );
+    }
+
+    // Listen for Automation Changes
+    if (proc.automations) {
+      proc.automations.forEach((list: AutomationList, param: string) => {
+        this.bindAutomationList(trackId, proc.id, param, list);
+      });
+    }
+
+    // Listen for future automations (Lazy creation)
+    if (proc.automationAdded) {
+      proc.automationAdded.connect(
+        ({ paramName, list }: { paramName: string; list: AutomationList }) => {
+          this.bindAutomationList(trackId, proc.id, paramName, list);
+        },
+      );
+    }
+  }
+
+  private bindAutomationList(
+    trackId: string,
+    procId: string,
+    param: string,
+    list: AutomationList,
+  ) {
+    if (list.changed) {
+      list.changed.connect(() => {
+        logger.debug(
+          "AudioEngine",
+          `Automation changed for ${trackId}:${procId}:${param}`,
+        );
+        const points = list.getPoints();
+        this.backend.setProcessorAutomation(trackId, procId, param, points);
+      });
+
+      // Initial sync if not empty
+      const points = list.getPoints();
+      if (points.length > 0) {
+        this.backend.setProcessorAutomation(trackId, procId, param, points);
+      }
+    }
+  }
+
+  public async initialize() {
+    await this.backend.initialize();
+  }
+
+  // Pre-roll state: frame-based check replaces setTimeout
+  private preRollTargetFrame: number | null = null;
+  private preRollArmedTracks: Track[] = [];
+  private preRollWasMetronomeEnabled = false;
+
+  // Transport
+  public async start() {
+    this.scheduleAutomations();
+    this.backend.setTempo(this.session.tempo);
+    this.session.startTransport();
+    await this.backend.start();
+    this.startTransportSync();
+  }
+
+  private syncId: number | null = null;
+
+  private requestFrame(cb: FrameRequestCallback): number {
+    if (typeof requestAnimationFrame !== "undefined") {
+      return requestAnimationFrame(cb);
+    }
+    return setTimeout(cb, 16) as unknown as number;
+  }
+
+  private cancelFrame(id: number) {
+    if (typeof cancelAnimationFrame !== "undefined") {
+      cancelAnimationFrame(id);
+    } else {
+      clearTimeout(id);
+    }
+  }
+
+  private startTransportSync() {
+    if (this.syncId) this.cancelFrame(this.syncId);
+
+    const loop = () => {
+      if (!this.session.isPlaying) return;
+
+      // Get current time from Backend
+      const currentFrame = this.backend.getCurrentFrame();
+
+      // Pre-roll check: frame-based instead of setTimeout
+      if (
+        this.preRollTargetFrame !== null &&
+        currentFrame >= this.preRollTargetFrame
+      ) {
+        this.preRollArmedTracks.forEach((t) =>
+          this.backend.setRecordingMuted(t.id, false),
+        );
+        if (!this.preRollWasMetronomeEnabled) {
+          this.backend.enableMetronome(false);
+        }
+        this.session.recordingStartFrame = currentFrame;
+        logger.info("AudioEngine", "Pre-roll complete, recording active");
+        this.preRollTargetFrame = null;
+        this.preRollArmedTracks = [];
+      }
+
+      // Check punch range during recording
+      if (
+        this.session.isRecording &&
+        this.session.punchEnabled &&
+        this.session.punchRangeId
+      ) {
+        const punchRange = this.session.getPunchRange();
+        if (punchRange) {
+          const isInPunchRange =
+            currentFrame >= punchRange.start && currentFrame < punchRange.end;
+          const armedTracks = this.session.tracks.filter((t) => t.armed);
+
+          // Mute/unmute recording based on whether we are inside the punch range
+          armedTracks.forEach((t) => {
+            this.backend.setRecordingMuted(t.id, !isInPunchRange);
+          });
+        }
+      }
+
+      // Check loop
+      if (this.session.loopEnabled && this.session.loopRangeId) {
+        const loopRange = this.session.getLoopRange();
+        if (loopRange && currentFrame >= loopRange.end) {
+          // Handle loop recording: save current take before looping
+          if (this.session.isRecording && this.session.loopRecordingEnabled) {
+            this.handleLoopRecordingTake(currentFrame).catch((err) => {
+              logger.error(
+                "AudioEngine",
+                "Error handling loop recording take:",
+                err,
+              );
+            });
+          }
+
+          // Loop back to start
+          logger.debug(
+            "AudioEngine",
+            `Loop: ${currentFrame} >= ${loopRange.end}, seeking to ${loopRange.start}`,
+          );
+          this.backend.seek(loopRange.start / this.session.sampleRate);
+          this.session.locateTransport(loopRange.start);
+        } else {
+          this.session.locateTransport(currentFrame);
+        }
+      } else {
+        this.session.locateTransport(currentFrame);
+      }
+
+      this.syncId = this.requestFrame(loop);
+    };
+    this.syncId = this.requestFrame(loop);
+  }
+
+  private scheduleAutomations() {
+    this.session.tracks.forEach((track) => {
+      track.route.processors.forEach((proc: Processor) => {
+        if (proc.automations) {
+          proc.automations.forEach(
+            (automationList: AutomationList, paramName: string) => {
+              const points = automationList.getPoints();
+              if (points.length > 0) {
+                this.backend.setProcessorAutomation(
+                  track.id,
+                  proc.id,
+                  paramName,
+                  points,
+                );
+              }
+            },
+          );
+        }
+      });
+    });
+  }
+
+  public stop() {
+    this.session.stopTransport();
+    this.backend.stop();
+  }
+
+  public pause() {
+    this.session.isPlaying = false;
+    this.backend.pause();
+  }
+
+  // Punch Recording
+  public enablePunchRecording(enabled: boolean): void {
+    this.session.setPunchEnabled(enabled);
+
+    // Sync punch range to backend
+    if (enabled && this.session.punchRangeId) {
+      const punchRange = this.session.getPunchRange();
+      if (punchRange) {
+        this.backend.enablePunchRecording(true);
+        this.backend.setPunchRange(punchRange.start, punchRange.end);
+      }
+    } else {
+      this.backend.enablePunchRecording(false);
+    }
+  }
+
+  // Monitor with effects
+  public setMonitorWithEffects(trackId: string, enabled: boolean): void {
+    this.backend.setMonitorWithEffects(trackId, enabled);
+  }
+
+  // Input Latency
+  public getInputLatencyMs(): number {
+    return this.backend.getInputLatencyMs();
+  }
+
+  /**
+   * Handle loop recording take: stop current recording, save take as a region on a new layer,
+   * then restart recording for the next pass.
+   */
+  private async handleLoopRecordingTake(_endFrame: number): Promise<void> {
+    const armedTracks = this.session.tracks.filter((t) => t.armed);
+    const takeNumber = this.session.incrementTakeCount();
+    const loopRange = this.session.getLoopRange();
+    if (!loopRange) return;
+
+    logger.info("AudioEngine", `Loop recording: completing take ${takeNumber}`);
+
+    for (const track of armedTracks) {
+      // Stop current recording and collect blob
+      const blob = await this.backend.stopRecording(track.id);
+      if (blob.size > 0) {
+        const url = URL.createObjectURL(blob);
+        await this.backend.cacheBlob(url, blob);
+
+        const startFrame = loopRange.start;
+        const durationFrames = loopRange.end - loopRange.start;
+
+        if (durationFrames > 0) {
+          const regionId = crypto.randomUUID() as RegionId;
+          // Each take goes on a different layer
+          const region = new Region(
+            regionId,
+            url,
+            startFrame,
+            durationFrames,
+            0,
+            `Take ${takeNumber}`,
+            takeNumber, // layer = take number
+          );
+          track.playlist.addRegion(region);
+          logger.debug(
+            "AudioEngine",
+            `Loop take ${takeNumber}: Region created on layer ${takeNumber}`,
+          );
+        }
+      }
+
+      // Restart recording for next take
+      await this.backend.prepareRecording(track.id);
+      this.backend.startRecording(track.id);
+    }
+  }
+
+  // ─── MIDI Input ─────────────────────────────────────────────────────────
+
+  /**
+   * Initialize MIDI input subsystem.
+   */
+  public async initializeMidiInput(): Promise<boolean> {
+    return this.midiInput.initialize();
+  }
+
+  /**
+   * Get available MIDI input devices.
+   */
+  public getMidiInputDevices(): MIDIInput[] {
+    return this.midiInput.getInputDevices();
+  }
+
+  /**
+   * Set the active MIDI input device.
+   */
+  public setMidiInputDevice(inputId: string | null): void {
+    this.midiInput.setActiveInput(inputId);
+  }
+
+  /**
+   * Get the MidiInput singleton for external consumers.
+   */
+  public getMidiInput(): MidiInput {
+    return this.midiInput;
+  }
+
+  // ─── MIDI Recording Helpers ──────────────────────────────────────────────
+
+  private startMidiRecording(): void {
+    this.midiRecordingNotes.clear();
+    this.midiRecordedNotes = [];
+
+    // Subscribe to MIDI note events
+    this.midiNoteOnSub = this.midiInput.noteOn.connect(
+      (event: MidiNoteOnEvent) => {
+        if (!this.session.isRecording) return;
+        const currentFrame = this.backend.getCurrentFrame();
+        const key = `${event.channel}-${event.pitch}`;
+        this.midiRecordingNotes.set(key, {
+          pitch: event.pitch,
+          velocity: event.velocity,
+          channel: event.channel,
+          startFrame: currentFrame,
+        });
+      },
+    );
+
+    this.midiNoteOffSub = this.midiInput.noteOff.connect(
+      (event: MidiNoteOffEvent) => {
+        if (!this.session.isRecording) return;
+        const currentFrame = this.backend.getCurrentFrame();
+        const key = `${event.channel}-${event.pitch}`;
+        const pending = this.midiRecordingNotes.get(key);
+        if (pending) {
+          const durationFrames = Math.max(1, currentFrame - pending.startFrame);
+          const note = new MidiNote(
+            crypto.randomUUID(),
+            pending.pitch,
+            pending.velocity,
+            pending.startFrame,
+            durationFrames,
+            pending.channel,
+          );
+          this.midiRecordedNotes.push(note);
+          this.midiRecordingNotes.delete(key);
+        }
+      },
+    );
+  }
+
+  private stopMidiRecording(): void {
+    // Close any still-held notes at the current position
+    const currentFrame = this.backend.getCurrentFrame();
+    for (const [_key, pending] of this.midiRecordingNotes) {
+      const durationFrames = Math.max(1, currentFrame - pending.startFrame);
+      const note = new MidiNote(
+        crypto.randomUUID(),
+        pending.pitch,
+        pending.velocity,
+        pending.startFrame,
+        durationFrames,
+        pending.channel,
+      );
+      this.midiRecordedNotes.push(note);
+    }
+    this.midiRecordingNotes.clear();
+
+    // Unsubscribe
+    this.midiNoteOnSub?.dispose();
+    this.midiNoteOffSub?.dispose();
+    this.midiNoteOnSub = null;
+    this.midiNoteOffSub = null;
+  }
+
+  private finalizeMidiRecording(): void {
+    if (this.midiRecordedNotes.length === 0) return;
+
+    const armedMidiTracks = this.session.tracks.filter(
+      (t) => t.armed && t.type === TrackType.MIDI,
+    );
+
+    for (const track of armedMidiTracks) {
+      const startFrame = this.session.recordingStartFrame;
+      // Find the extent of recorded notes
+      let minStart = Infinity;
+      let maxEnd = 0;
+      for (const note of this.midiRecordedNotes) {
+        if (note.startFrame < minStart) minStart = note.startFrame;
+        if (note.endFrame > maxEnd) maxEnd = note.endFrame;
+      }
+
+      const regionStart = Math.min(startFrame, minStart);
+      const regionLength = maxEnd - regionStart;
+
+      if (regionLength <= 0) continue;
+
+      const regionId = crypto.randomUUID() as RegionId;
+      const region = new MidiRegion(
+        regionId,
+        "MIDI Recording",
+        regionStart,
+        regionLength,
+      );
+
+      // Make note positions relative to region start
+      for (const note of this.midiRecordedNotes) {
+        const relativeNote = new MidiNote(
+          note.id,
+          note.pitch,
+          note.velocity,
+          note.startFrame - regionStart,
+          note.durationFrames,
+          note.channel,
+        );
+        region.addNote(relativeNote);
+      }
+
+      track.playlist.addMidiRegion(region);
+      logger.info(
+        "AudioEngine",
+        `MIDI recording finalized: ${this.midiRecordedNotes.length} notes in region ${regionId}`,
+      );
+    }
+
+    this.midiRecordedNotes = [];
+  }
+
+  // Recording
+  public async startRecording(): Promise<void> {
+    const armedTracks = this.session.tracks.filter((t) => t.armed);
+    logger.info(
+      "AudioEngine",
+      `Starting recording. Armed tracks: ${armedTracks.length}`,
+    );
+
+    // Setup punch recording if enabled
+    if (this.session.punchEnabled && this.session.punchRangeId) {
+      const punchRange = this.session.getPunchRange();
+      if (punchRange) {
+        logger.info(
+          "AudioEngine",
+          `Punch recording enabled: ${punchRange.name} (${punchRange.start} - ${punchRange.end})`,
+        );
+        this.backend.enablePunchRecording(true);
+        this.backend.setPunchRange(punchRange.start, punchRange.end);
+      }
+    }
+
+    // Reset loop recording take count
+    if (this.session.loopRecordingEnabled) {
+      this.session.loopRecordingTakeCount = 0;
+      logger.info("AudioEngine", "Loop recording mode active");
+    }
+
+    // Prepare audio recording for non-MIDI armed tracks
+    const armedAudioTracks = armedTracks.filter(
+      (t) => t.type !== TrackType.MIDI,
+    );
+    await Promise.all(
+      armedAudioTracks.map((t) => this.backend.prepareRecording(t.id)),
+    );
+
+    // Start all prepared audio tracks
+    armedAudioTracks.forEach((t) => this.backend.startRecording(t.id));
+
+    // Start MIDI recording if any armed MIDI tracks
+    const armedMidiTracks = armedTracks.filter(
+      (t) => t.type === TrackType.MIDI,
+    );
+    if (armedMidiTracks.length > 0) {
+      this.startMidiRecording();
+    }
+
+    this.session.startRecording();
+
+    // Handle pre-roll: if pre-roll is set, start playback with metronome first
+    if (this.session.preRollBars > 0) {
+      const preRollSeconds = this.session.getPreRollDurationSeconds();
+      logger.info(
+        "AudioEngine",
+        `Pre-roll: ${this.session.preRollBars} bars (${preRollSeconds.toFixed(2)}s)`,
+      );
+
+      // Enable metronome for pre-roll if not already enabled
+      this.preRollWasMetronomeEnabled = this.session.metronomeEnabled;
+      if (!this.preRollWasMetronomeEnabled) {
+        this.backend.enableMetronome(true);
+      }
+
+      // Mute recording during pre-roll
+      armedTracks.forEach((t) => this.backend.setRecordingMuted(t.id, true));
+
+      // Compute the frame at which pre-roll ends (checked in transport sync loop)
+      const currentFrame = this.backend.getCurrentFrame();
+      this.preRollTargetFrame =
+        currentFrame + Math.floor(preRollSeconds * this.session.sampleRate);
+      this.preRollArmedTracks = armedTracks;
+
+      // Start transport — the sync loop will unmute recording at preRollTargetFrame
+      await this.start();
+    } else {
+      // No pre-roll, start immediately
+      await this.start();
+    }
+  }
+
+  public async stopRecording(): Promise<void> {
+    const armedTracks = this.session.tracks.filter((t) => t.armed);
+    logger.info(
+      "AudioEngine",
+      `Stopping recording. Armed tracks: ${armedTracks.length}`,
+    );
+
+    // Capture end frame BEFORE stopping transport (which resets to 0)
+    // using backend for precision or session for consistency.
+    // Backend is the source of truth for time.
+    const endFrame = this.backend.getCurrentFrame();
+
+    // Stop MIDI recording first (before transport stop resets frame)
+    this.stopMidiRecording();
+    this.finalizeMidiRecording();
+
+    // Stop Transport
+    this.stop();
+
+    // Stop all audio armed tracks and collect blobs
+    const armedAudioTracks = armedTracks.filter(
+      (t) => t.type !== TrackType.MIDI,
+    );
+    for (const track of armedAudioTracks) {
+      const blob = await this.backend.stopRecording(track.id);
+      if (blob.size > 0) {
+        // Create Region
+        logger.debug(
+          "AudioEngine",
+          `Recorded blob for track ${track.id}, size: ${blob.size}`,
+        );
+
+        const url = URL.createObjectURL(blob);
+
+        // Cache the blob as AudioBuffer immediately for Waveform rendering
+        await this.backend.cacheBlob(url, blob);
+
+        // Calculate duration
+        const startFrame = this.session.recordingStartFrame;
+        const durationFrames = endFrame - startFrame;
+
+        // Create Region in Playlist
+        if (durationFrames > 0) {
+          const regionId = crypto.randomUUID() as RegionId;
+          const region = new Region(
+            regionId,
+            url,
+            startFrame,
+            durationFrames,
+            0,
+            "Recording",
+          );
+          track.playlist.addRegion(region);
+          logger.debug(
+            "AudioEngine",
+            `Created Region: ${url}, Start: ${startFrame}, Dur: ${durationFrames}`,
+          );
+        }
+      }
+    }
+
+    this.session.stopRecording();
+  }
+
+  // Track Management - Proxy to Session
+  public addTrack(
+    name: string,
+    type: TrackType = TrackType.AUDIO,
+    id?: string,
+  ) {
+    return this.session.addTrack(name, type, id);
+  }
+
+  public removeTrack(trackId: string) {
+    this.session.removeTrack(trackId);
+  }
+
+  // Direct Parameter Control - Now updates Domain, which signals Backend
+  public setTrackGain(trackId: string, gain: number) {
+    const track = this.session.getTrack(trackId);
+    if (track) {
+      track.route.volume = gain; // Updates Route -> Signal -> Backend
+    }
+  }
+
+  public setTrackPan(trackId: string, pan: number) {
+    const track = this.session.getTrack(trackId);
+    if (track) {
+      track.route.pan = pan; // Updates Route -> Signal -> Backend
+    }
+  }
+
+  // Export
+  public getExportConfig(): ExportConfig {
+    return this.session.getExportConfig();
+  }
+
+  public getExportStatus(): ExportStatus {
+    return this.session.getExportStatus();
+  }
+
+  public async exportAudio(
+    config: ExportConfig,
+    _status: ExportStatus,
+  ): Promise<void> {
+    const trackIds = config.exportMasterOnly
+      ? this.session.tracks.map((t) => t.id)
+      : config.trackIds;
+
+    const _buffer = await this.backend.exportAudio(
+      config.startFrame,
+      config.endFrame,
+      config.sampleRate,
+      trackIds,
+    );
+
+    // This is now handled by OfflineExporter in ExportCommand
+    // But we keep this method for potential direct use
+    return;
+  }
+
+  public async renderRegionsToBuffer(
+    trackId: string,
+    regionIds: string[],
+  ): Promise<AudioBuffer> {
+    return this.backend.renderRegionsToBuffer(trackId, regionIds);
+  }
+
+  // Metering
+  public getMeterData(trackId: string): MeterData {
+    return this.backend.getMeterData(trackId);
+  }
+
+  public getMasterMeterData(): MeterData {
+    return this.backend.getMasterMeterData();
+  }
+
+  public getAnalyserNode(trackId?: string): AnalyserNode | null {
+    return this.backend.getAnalyserNode(trackId);
+  }
+
+  // Region Audition
+  public auditionRegion(trackId: string, regionId: string): void {
+    this.backend.auditionRegion(trackId, regionId);
+  }
+
+  public stopAudition(): void {
+    this.backend.stopAudition();
+  }
+
+  // MIDI Instrument
+  public setMidiInstrument(trackId: string, instrumentType: string): void {
+    this.backend.setMidiInstrument(trackId, instrumentType);
+  }
+
+  // Strip Silence
+  public async stripSilence(
+    trackId: string,
+    regionId: string,
+    thresholdDb: number,
+    minLengthFrames: number,
+  ): Promise<Array<{ start: number; length: number }>> {
+    return this.backend.stripSilence(
+      trackId,
+      regionId,
+      thresholdDb,
+      minLengthFrames,
+    );
+  }
+
+  // Normalize Region
+  public async normalizeRegion(
+    trackId: string,
+    regionId: string,
+    targetDb: number,
+  ): Promise<number> {
+    return this.backend.normalizeRegion(trackId, regionId, targetDb);
+  }
+
+  // MIDI Panic
+  public midiPanic(): void {
+    this.backend.midiPanic();
+  }
+
+  // Stereo Master Metering
+  public getMasterStereoMeterData(): { left: MeterData; right: MeterData } {
+    return this.backend.getMasterStereoMeterData();
+  }
+
+  // Region Reverse
+  public async reverseRegionBuffer(
+    trackId: string,
+    regionId: string,
+  ): Promise<void> {
+    return this.backend.reverseRegionBuffer(trackId, regionId);
+  }
+
+  // Session Management
+  public loadSession(newSession: Session): void {
+    this.stop();
+    this.session = newSession;
+    this.setupSessionListeners();
+  }
+
+  public loadSessionFromSnapshot(snapshot: SessionSnapshot): void {
+    this.stop();
+    this.session = Session.fromJSON(snapshot);
+    this.setupSessionListeners();
+  }
+}
