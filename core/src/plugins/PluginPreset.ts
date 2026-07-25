@@ -16,7 +16,7 @@ export interface PluginPresetSnapshot {
 
 // ─── PresetManager ────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = "drop-ai-plugin-presets";
+const STORAGE_KEY = "daw-engine-plugin-presets";
 
 /**
  * Singleton that manages built-in and custom plugin presets.

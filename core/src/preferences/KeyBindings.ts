@@ -1,7 +1,7 @@
 import { Signal } from "../lib/Signal";
 
 import { logger } from "../utils/Logger";
-const STORAGE_KEY = "drop-ai-keybindings";
+const STORAGE_KEY = "daw-engine-keybindings";
 
 /**
  * Manages custom keyboard shortcut bindings that override defaults.

@@ -1,6 +1,6 @@
 import { SessionSnapshot } from "../domain/Session";
 
-const DB_NAME = "drop-ai-daw";
+const DB_NAME = "daw-engine";
 const DB_VERSION = 1;
 const SESSIONS_STORE = "sessions";
 const SNAPSHOTS_STORE = "snapshots";

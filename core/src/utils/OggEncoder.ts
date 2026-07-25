@@ -269,7 +269,7 @@ export class OggEncoder {
   }
 
   private static buildCommentHeader(serialNumber: number): Uint8Array {
-    const vendor = "drop.ai Web DAW";
+    const vendor = "daw-engine Web DAW";
     const vendorBytes = new TextEncoder().encode(vendor);
     const data = new Uint8Array(7 + 4 + vendorBytes.length + 4 + 1);
     const view = new DataView(data.buffer);

@@ -364,11 +364,11 @@ export class BWFMetadata {
     const timeStr = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
 
     const sr = options?.sampleRate ?? 48000;
-    const codingHistory = `A=PCM,F=${sr},W=24,M=stereo,T=drop.ai\r\n`;
+    const codingHistory = `A=PCM,F=${sr},W=24,M=stereo,T=daw-engine\r\n`;
 
     return {
       description: options?.description ?? "",
-      originator: options?.originator ?? "drop.ai",
+      originator: options?.originator ?? "daw-engine",
       originatorReference: BWFMetadata.generateOriginatorReference(),
       originationDate: dateStr,
       originationTime: timeStr,

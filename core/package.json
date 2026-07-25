@@ -1,5 +1,5 @@
 {
-  "name": "@drop-ai/core",
+  "name": "@daw-engine/core",
   "version": "1.0.0",
   "description": "Headless DAW engine — domain models, command system, audio engine, automation, plugins, MIDI",
   "license": "MIT",
@@ -31,6 +31,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist",
+    "prepack": "npm run build",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -49,7 +51,9 @@
     }
   },
   "devDependencies": {
-    "typescript": "^5.7.2"
+    "@types/node": "^18.19.70",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.9"
   },
   "keywords": [
     "daw",

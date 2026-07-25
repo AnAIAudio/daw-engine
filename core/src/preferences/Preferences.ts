@@ -1,7 +1,7 @@
 import { Signal } from "../lib/Signal";
 
 import { logger } from "../utils/Logger";
-const STORAGE_KEY = "drop-ai-preferences";
+const STORAGE_KEY = "daw-engine-preferences";
 
 export interface PreferenceValues {
   audioBufferSize: 128 | 256 | 512 | 1024 | 2048;

@@ -1,9 +1,9 @@
-# @drop-ai/core
+# @daw-engine/core
 
 Headless DAW (Digital Audio Workstation) engine for TypeScript/JavaScript. Provides domain models, command system, audio engine, automation, plugins, and MIDI — all with zero browser or framework dependencies.
 
 ```bash
-npm install @drop-ai/core
+npm install @daw-engine/core
 ```
 
 ## Features
@@ -29,7 +29,7 @@ import {
   TrackType,
   CommandExecutor,
   CommandType,
-} from "@drop-ai/core";
+} from "@daw-engine/core";
 
 // 1. Implement AudioProvider interface for your platform
 class MyAudioBackend implements AudioProvider {
@@ -75,7 +75,7 @@ await CommandExecutor.getInstance().execute({
 │  │ Automation, Plugins, MIDI, Markers    │       │
 │  └───────────────────────────────────────┘       │
 │                                                  │
-│  @drop-ai/core                                        │
+│  @daw-engine/core                                        │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -88,7 +88,7 @@ await CommandExecutor.getInstance().execute({
 The root container for a DAW project. Manages tracks, sources, markers, ranges, tempo, and transport state.
 
 ```typescript
-import { Session, TrackType } from "@drop-ai/core";
+import { Session, TrackType } from "@daw-engine/core";
 
 const session = new Session("My Song", undefined, 44100);
 
@@ -149,7 +149,7 @@ track.soloChanged.connect((soloed) => console.log("Solo:", soloed));
 A segment of audio on the timeline, referencing a `Source`.
 
 ```typescript
-import { Region } from "@drop-ai/core";
+import { Region } from "@daw-engine/core";
 
 const region = new Region(
   "region-1", // id
@@ -171,7 +171,7 @@ region.resize(44100 * 8); // resize to 8 seconds
 Central controller connecting the session to an audio backend. Uses the singleton pattern with dependency injection.
 
 ```typescript
-import { AudioEngine, AudioProvider } from "@drop-ai/core";
+import { AudioEngine, AudioProvider } from "@daw-engine/core";
 
 // Initialize with your backend implementation
 const engine = AudioEngine.getInstance(myBackend);
@@ -196,10 +196,10 @@ engine.setBackend(new DifferentBackend());
 
 ### AudioProvider Interface
 
-Implement this interface to connect @drop-ai/core to any audio system.
+Implement this interface to connect @daw-engine/core to any audio system.
 
 ```typescript
-import { AudioProvider } from "@drop-ai/core";
+import { AudioProvider } from "@daw-engine/core";
 
 class WebAudioBackend implements AudioProvider {
   async initialize(): Promise<void> {
@@ -251,7 +251,7 @@ class WebAudioBackend implements AudioProvider {
 }
 ```
 
-**Included backend examples (in the drop.ai app, not in this package):**
+**Included backend examples (in the daw-engine app, not in this package):**
 
 | Backend                 | Environment | Description                   |
 | ----------------------- | ----------- | ----------------------------- |
@@ -268,7 +268,7 @@ All state mutations can go through the command system, providing validation (via
 ### Executing Commands
 
 ```typescript
-import { CommandExecutor, CommandType } from "@drop-ai/core";
+import { CommandExecutor, CommandType } from "@daw-engine/core";
 
 const executor = CommandExecutor.getInstance();
 
@@ -318,7 +318,7 @@ await history.commitTransaction();
 ### Registering Custom Handlers
 
 ```typescript
-import { CommandHandler, CommandResult } from "@drop-ai/core";
+import { CommandHandler, CommandResult } from "@daw-engine/core";
 
 class MyCustomHandler implements CommandHandler {
   readonly handledTypes = ["MY_CUSTOM_COMMAND"];
@@ -361,7 +361,7 @@ CommandExecutor.getInstance().registerHandler(new MyCustomHandler());
 20+ built-in audio effect plugins, managed by `PluginManager`.
 
 ```typescript
-import { PluginManager } from "@drop-ai/core";
+import { PluginManager } from "@daw-engine/core";
 
 const manager = PluginManager.getInstance();
 
@@ -416,7 +416,7 @@ eq.parameterChanged.connect(({ id, value }) => {
 Per-parameter automation with multiple recording modes.
 
 ```typescript
-import { AutomationList, AutomationMode } from "@drop-ai/core";
+import { AutomationList, AutomationMode } from "@daw-engine/core";
 
 const automation = new AutomationList();
 
@@ -447,7 +447,7 @@ automation.eraseRange(1.0, 3.0);
 Type-safe event emitter inspired by Qt's Signal/Slot pattern. Used throughout the domain layer.
 
 ```typescript
-import { Signal } from "@drop-ai/core";
+import { Signal } from "@daw-engine/core";
 
 const signal = new Signal<number>();
 
@@ -523,7 +523,7 @@ history.historyChanged.connect(() => {
 Map keyboard shortcuts to commands.
 
 ```typescript
-import { ActionRegistry, ActionCategory } from "@drop-ai/core";
+import { ActionRegistry, ActionCategory } from "@daw-engine/core";
 
 const registry = ActionRegistry.getInstance();
 
@@ -556,7 +556,7 @@ const key = registry.getEffectiveKey("transport.play"); // 'Space'
 ### Custom Key Bindings
 
 ```typescript
-import { KeyBindings } from "@drop-ai/core";
+import { KeyBindings } from "@daw-engine/core";
 
 const bindings = KeyBindings.getInstance();
 
@@ -573,7 +573,7 @@ bindings.resetToDefaults();
 Persistent settings with defaults.
 
 ```typescript
-import { Preferences } from "@drop-ai/core";
+import { Preferences } from "@daw-engine/core";
 
 const prefs = Preferences.getInstance();
 
@@ -603,7 +603,7 @@ prefs.resetToDefaults();
 Session persistence via IndexedDB (browser) or localStorage fallback.
 
 ```typescript
-import { SessionStorage } from "@drop-ai/core";
+import { SessionStorage } from "@daw-engine/core";
 
 const storage = SessionStorage.getInstance();
 
@@ -643,7 +643,7 @@ import {
   PluginInsert,
   SendProcessor,
   MeterProcessor,
-} from "@drop-ai/core";
+} from "@daw-engine/core";
 
 // Processor types available in the chain:
 // GainProcessor  — Fader / Trim level control
@@ -665,7 +665,7 @@ import {
   Session,
   CommandExecutor,
   CommandType,
-} from "@drop-ai/core";
+} from "@daw-engine/core";
 
 // Headless backend (no audio output)
 class HeadlessBackend implements AudioProvider {
@@ -691,7 +691,7 @@ const snapshot = session.toJSON();
 ### Electron App
 
 ```typescript
-import { AudioEngine, AudioProvider } from "@drop-ai/core";
+import { AudioEngine, AudioProvider } from "@daw-engine/core";
 
 class ElectronAudioBackend implements AudioProvider {
   // Use PortAudio or native audio APIs
@@ -706,7 +706,7 @@ await engine.initialize();
 
 ```typescript
 import { useEffect, useState } from "react";
-import { AudioEngine, Session } from "@drop-ai/core";
+import { AudioEngine, Session } from "@daw-engine/core";
 
 function useDAWEngine(backend: AudioProvider) {
   const [engine] = useState(() => AudioEngine.getInstance(backend));

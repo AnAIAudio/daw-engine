@@ -1,4 +1,4 @@
-import type { PeakData, FrameCount } from "@drop-ai/core";
+import type { PeakData, FrameCount } from "@daw-engine/core";
 
 // ---------------------------------------------------------------------------
 // Types

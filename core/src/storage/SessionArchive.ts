@@ -10,7 +10,7 @@ import { Signal } from "../lib/Signal";
  * - metadata.json (archive metadata)
  *
  * Binary format:
- * [4 bytes magic: "DRPA"]
+ * [4 bytes magic: "DAWE"]
  * [4 bytes version: 1]
  * [4 bytes metadata JSON length]
  * [metadata JSON]
@@ -38,8 +38,8 @@ export interface ExtractedArchive {
   metadata: ArchiveMetadata;
 }
 
-/** Magic bytes identifying a drop.ai archive: "DRPA" */
-const ARCHIVE_MAGIC = new Uint8Array([0x44, 0x52, 0x50, 0x41]); // "DRPA"
+/** Magic bytes identifying a daw-engine archive: "DAWE" */
+const ARCHIVE_MAGIC = new Uint8Array([0x44, 0x41, 0x57, 0x45]); // "DAWE"
 const ARCHIVE_FORMAT_VERSION = 1;
 
 export class SessionArchive {
@@ -112,7 +112,7 @@ export class SessionArchive {
     const bytes = new Uint8Array(buffer);
     let offset = 0;
 
-    // Magic: "DRPA"
+    // Magic: "DAWE"
     bytes.set(ARCHIVE_MAGIC, offset);
     offset += 4;
 
@@ -160,7 +160,7 @@ export class SessionArchive {
 
     this.progress.emit(1.0);
 
-    return new Blob([buffer], { type: "application/x-drop-archive" });
+    return new Blob([buffer], { type: "application/x-daw-engine-archive" });
   }
 
   /**
@@ -186,7 +186,7 @@ export class SessionArchive {
       bytes[2] !== ARCHIVE_MAGIC[2] ||
       bytes[3] !== ARCHIVE_MAGIC[3]
     ) {
-      throw new Error("Invalid archive: missing DRPA magic bytes");
+      throw new Error("Invalid archive: missing DAWE magic bytes");
     }
     offset += 4;
 
@@ -278,7 +278,7 @@ export class SessionArchive {
       bytes[2] !== ARCHIVE_MAGIC[2] ||
       bytes[3] !== ARCHIVE_MAGIC[3]
     ) {
-      throw new Error("Invalid archive: missing DRPA magic bytes");
+      throw new Error("Invalid archive: missing DAWE magic bytes");
     }
     offset += 4;
 

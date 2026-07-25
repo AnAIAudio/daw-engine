@@ -4,7 +4,7 @@ import {
   getBuiltInPresets,
 } from "../domain/ExportPreset";
 
-const DB_NAME = "drop-ai-daw";
+const DB_NAME = "daw-engine";
 const DB_VERSION = 2;
 const PRESETS_STORE = "exportPresets";
 
