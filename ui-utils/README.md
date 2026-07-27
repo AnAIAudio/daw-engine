@@ -1,9 +1,9 @@
-# @drop-ai/ui-utils
+# @anaidev/daw-engine-ui-utils
 
-Framework-agnostic UI utilities for building DAW interfaces on top of [`@drop-ai/core`](https://www.npmjs.com/package/@drop-ai/core). Provides the missing layer between headless domain models and visual rendering — viewport math, waveform computation, ruler ticks, and playhead tracking.
+Framework-agnostic UI utilities for building DAW interfaces on top of [`@anaidev/daw-engine-core`](https://www.npmjs.com/package/@anaidev/daw-engine-core). Provides the missing layer between headless domain models and visual rendering — viewport math, waveform computation, ruler ticks, and playhead tracking.
 
 ```bash
-npm install @drop-ai/ui-utils @drop-ai/core
+npm install @anaidev/daw-engine-ui-utils @anaidev/daw-engine-core
 ```
 
 ## Features
@@ -20,7 +20,7 @@ npm install @drop-ai/ui-utils @drop-ai/core
 ## Quick Start
 
 ```typescript
-import { Session, AudioEngine, ClockMode } from "@drop-ai/core";
+import { Session, AudioEngine, ClockMode } from "@anaidev/daw-engine-core";
 import {
   TimelineViewport,
   TrackLayout,
@@ -28,7 +28,7 @@ import {
   computePeaks,
   renderWaveform,
   computeRulerTicks,
-} from "@drop-ai/ui-utils";
+} from "@anaidev/daw-engine-ui-utils";
 
 // 1. Create a viewport
 const viewport = new TimelineViewport(44100);
@@ -144,7 +144,7 @@ const peaks = computePeaksFromSamples(channelData, 512);
 const resolution = recommendResolution(viewport.framesPerPixel);
 ```
 
-Returns a `PeakData` object (compatible with `@drop-ai/core`'s `Source.setPeakData()`):
+Returns a `PeakData` object (compatible with `@anaidev/daw-engine-core`'s `Source.setPeakData()`):
 
 ```typescript
 interface PeakData {
@@ -189,7 +189,7 @@ renderWaveformFromSamples(ctx, channelData, 800, 120, { color: "#ff6b6b" });
 Compute ruler tick positions and labels for the visible viewport. Automatically adjusts tick density based on zoom level.
 
 ```typescript
-import { ClockMode } from "@drop-ai/core";
+import { ClockMode } from "@anaidev/daw-engine-core";
 
 const ticks = computeRulerTicks({
   viewport,
@@ -248,14 +248,14 @@ tracker.dispose();
 │  └──────────────────┬────────────────────────────┘  │
 │                     │ uses                           │
 │  ┌──────────────────▼────────────────────────────┐  │
-│  │ @drop-ai/ui-utils                             │  │
+│  │ @anaidev/daw-engine-ui-utils                  │  │
 │  │ TimelineViewport, TrackLayout, computePeaks,  │  │
 │  │ renderWaveform, computeRulerTicks,            │  │
 │  │ PlayheadTracker                               │  │
 │  └──────────────────┬────────────────────────────┘  │
 │                     │ depends on                     │
 │  ┌──────────────────▼────────────────────────────┐  │
-│  │ @drop-ai/core                                 │  │
+│  │ @anaidev/daw-engine-core                      │  │
 │  │ Session, Track, Region, Source, AudioEngine,   │  │
 │  │ CommandExecutor, Signal, PeakData, ClockMode  │  │
 │  └───────────────────────────────────────────────┘  │
@@ -266,9 +266,9 @@ tracker.dispose();
 
 ## Dependencies
 
-| Package         | Type    | Description                                |
-| --------------- | ------- | ------------------------------------------ |
-| `@drop-ai/core` | runtime | Domain models, Signal, PeakData, ClockMode |
+| Package                    | Type    | Description                                |
+| -------------------------- | ------- | ------------------------------------------ |
+| `@anaidev/daw-engine-core` | runtime | Domain models, Signal, PeakData, ClockMode |
 
 ---
 

@@ -1,5 +1,5 @@
-import type { TrackId } from "@drop-ai/core";
-import { Signal } from "@drop-ai/core";
+import type { TrackId } from "@anaidev/daw-engine-core";
+import { Signal } from "@anaidev/daw-engine-core";
 
 // ---------------------------------------------------------------------------
 // Constants

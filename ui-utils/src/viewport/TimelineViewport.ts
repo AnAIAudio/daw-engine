@@ -1,6 +1,6 @@
-import type { FrameCount } from "@drop-ai/core";
-import { Signal } from "@drop-ai/core";
-import { ZoomFocus } from "@drop-ai/core";
+import type { FrameCount } from "@anaidev/daw-engine-core";
+import { Signal } from "@anaidev/daw-engine-core";
+import { ZoomFocus } from "@anaidev/daw-engine-core";
 
 // ---------------------------------------------------------------------------
 // Constants
