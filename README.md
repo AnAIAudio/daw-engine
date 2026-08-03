@@ -1,138 +1,158 @@
 # DAW Engine
 
-DAW Engine is a collection of TypeScript packages for building a Digital Audio Workstation (DAW).
+DAW Engine is a TypeScript library for implementing DAW editing state and workflows.
 
-`@anaidev/daw-engine-core` manages domain state and audio control. `@anaidev/daw-engine-ui-utils` provides
-timeline, waveform, and Canvas rendering utilities. The packages do not include UI framework components.
+It manages multitrack editing state with `Session`, `Track`, and `Region`, and executes editing operations such as move, split, trim, and fade as commands.
+
+It does not depend on a specific UI framework or audio runtime, so you can connect the UI and audio backend that suit your product.
+
+## Features
+
+- DAW domain model based on `Session`, `Track`, `Region`, and `Source`
+- Command execution with Zod validation and handlers
+- Undo/redo and transactions
+- Non-destructive editing that preserves the original audio
+- Replaceable `AudioProvider` interface
+- Timeline, waveform, and canvas calculation utilities
+- State change subscriptions based on `Signal<T>`
+- Session serialization and restoration
 
 ## Packages
 
-| Package                                      | Purpose                                              | Main APIs                                                                         |
-| -------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------- |
-| [`@anaidev/daw-engine-core`](./core)         | Session state and audio control                      | `Session`, `Track`, `Region`, `AudioEngine`, `CommandExecutor`, `Signal`          |
-| [`@anaidev/daw-engine-ui-utils`](./ui-utils) | Calculations and Canvas utilities for DAW interfaces | `TimelineViewport`, `TrackLayout`, `computePeaks`, `renderWaveform`, `SceneGraph` |
+| Package                                      | Description                                                |
+| -------------------------------------------- | ---------------------------------------------------------- |
+| [`@anaidev/daw-engine-core`](./core)         | DAW domain, commands, history, and audio backend interface |
+| [`@anaidev/daw-engine-ui-utils`](./ui-utils) | Timeline, waveform, and canvas rendering calculations      |
 
-`ui-utils` depends on `core`. Install only `core` if your application does not need the UI utilities.
-
-```mermaid
-flowchart LR
-  App["Application"] --> UI["daw-engine-ui-utils"]
-  App --> Core["daw-engine-core"]
-  UI --> Core
-  Core --> Provider["AudioProvider implementation"]
-```
-
-## Requirements
-
-- Node.js 18 or later
-- A runtime or bundler that supports ECMAScript Modules (ESM)
-- An `AudioProvider` implementation for audio playback and recording
-- The relevant Web APIs when using Canvas rendering, `AudioBuffer`, `requestAnimationFrame`, or IndexedDB features
+`ui-utils` depends on `core`. If you do not need timeline or waveform features, you can install `core` only.
 
 ## Installation
-
-Install the session and audio engine package:
 
 ```bash
 npm install @anaidev/daw-engine-core
 ```
 
-Install both packages when building a timeline or waveform interface:
+To use the timeline and waveform utilities, install both packages.
 
 ```bash
 npm install @anaidev/daw-engine-core @anaidev/daw-engine-ui-utils
 ```
 
-## Step-by-Step Guide
+## Quick Start
 
-### 1. Create a Session
-
-`Session` manages DAW project state such as tracks, regions, and tempo. This example does not play audio, so it
-does not require an `AudioProvider`.
+### Create a session
 
 ```typescript
 import { Session, TrackType } from '@anaidev/daw-engine-core';
 
 const session = new Session('My Song', undefined, 48_000);
 
-const trackAddedSubscription = session.trackAdded.connect((track) => {
-  console.log(`Track added: ${track.name}`);
-});
-
 const vocalTrack = session.addTrack('Vocal', TrackType.AUDIO);
+
 vocalTrack.setArmed(true);
 session.setTempo(120);
 
 const snapshot = session.toJSON();
 const restoredSession = Session.fromJSON(snapshot);
-
-console.log(restoredSession.name);
-trackAddedSubscription.dispose();
 ```
 
-### 2. Calculate Timeline Coordinates and Waveform Data
+### Execute a command
 
-`TimelineViewport` converts between audio frames and screen pixels. `computePeaksFromSamples` converts PCM samples
-into minimum, maximum, and root mean square (RMS) values for waveform rendering.
+Before executing a command, connect an `AudioProvider` for your product environment to `AudioEngine`.
 
 ```typescript
 import {
-  TimelineViewport,
-  computePeaksFromSamples,
-} from '@anaidev/daw-engine-ui-utils';
+  AudioEngine,
+  CommandExecutor,
+  CommandType,
+} from '@anaidev/daw-engine-core';
+
+AudioEngine.getInstance(audioProvider);
+
+const executor = CommandExecutor.getInstance();
+
+const result = await executor.execute({
+  type: CommandType.ADD_TRACK,
+  payload: {
+    name: 'Guitar',
+    trackType: 'audio',
+  },
+});
+
+if (!result.success) {
+  throw new Error(result.message);
+}
+
+await executor.history.undo();
+await executor.history.redo();
+```
+
+### Timeline coordinates
+
+```typescript
+import { TimelineViewport } from '@anaidev/daw-engine-ui-utils';
 
 const viewport = new TimelineViewport(48_000);
+
 viewport.setDuration(180);
 viewport.setViewportWidth(1_200);
 viewport.setPixelsPerSecond(100);
 
-const oneSecondX = viewport.frameToPixel(48_000);
-console.log(oneSecondX); // 100
-
-const samples = new Float32Array([0, 0.25, 0.5, -0.5, -0.25, 0]);
-const peaks = computePeaksFromSamples(samples, 2);
-
-console.log(peaks.length); // 3
+viewport.frameToPixel(48_000); // 100
 ```
 
-### 3. Connect Audio Input and Output
+### Waveform peaks
 
-`AudioEngine` requires an `AudioProvider` implementation when it is first initialized. The implementation must
-satisfy the [`AudioProvider`](./core/src/audio/AudioProvider.ts) interface for transport, track creation, region
-scheduling, metering, and related audio operations.
+```typescript
+import { computePeaksFromSamples } from '@anaidev/daw-engine-ui-utils';
 
-This repository does not include a Web Audio or native audio backend implementation.
+const samples = new Float32Array([0, 0.25, 0.5, -0.5, -0.25, 0]);
 
-## Features
+const peaks = computePeaksFromSamples(samples, 2);
+```
 
-### Core
+## Core Concepts
 
-- Domain models for sessions, tracks, regions, sources, markers, and ranges
-- Command execution with undo and redo history
-- Audio backend integration through the `AudioProvider` interface
-- Models for automation, MIDI, routing, processors, and plugins
-- State change notifications through `Signal<T>`
-- Session snapshot creation and restoration
+### Command
 
-### UI Utils
+Editing operations are represented as data in the form `{ type, payload }`.
 
-- Timeline zoom, scroll, and frame-to-pixel conversion
-- Track height and vertical position calculation
-- Waveform peak calculation and Canvas 2D rendering
-- Ruler tick calculation and playhead tracking
-- Virtual scrolling and infinite timeline calculations
-- Canvas scene graph, hit testing, and dirty rectangle tracking
+UI buttons, keyboard shortcuts, scripts, and automation can use the same command format. Inputs are validated against Zod schemas before execution.
 
-See each package README for detailed API documentation and additional examples.
+### Non-destructive editing
+
+`Source` represents the original audio, while `Region` represents an instance of a source placed on the timeline.
+
+Multiple regions can reference the same source, allowing you to edit without modifying the original file.
+
+### AudioProvider
+
+DAW Engine does not directly implement audio playback or recording.
+
+The `AudioProvider` interface connects playback, recording, region scheduling, metering, and export features to your product's Web Audio or native audio implementation.
+
+## Documentation
 
 - [Core documentation](./core/README.md)
 - [UI Utils documentation](./ui-utils/README.md)
+- [AudioProvider interface](./core/src/audio/AudioProvider.ts)
 
-## Local Development
+## Requirements
 
-The repository does not have a root workspace configuration. Run commands separately in each package.
+- Node.js 18 or later
+- A runtime or bundler that supports ESM
+- An `AudioProvider` implementation for playback and recording
+- Web APIs such as Canvas, `AudioBuffer`, and `requestAnimationFrame`, depending on the features you use
 
-### Core
+## Status
+
+DAW Engine currently provides a command-oriented editing architecture, but it does not require every state change to use a command.
+
+Not every command or state change supports undo/redo. Before integrating DAW Engine into a product, verify the commands you use and your `AudioProvider` implementation separately.
+
+## Development
+
+Install and verify each package independently.
 
 ```bash
 cd core
@@ -142,8 +162,6 @@ pnpm typecheck
 pnpm build
 ```
 
-### UI Utils
-
 ```bash
 cd ui-utils
 pnpm install
@@ -151,17 +169,6 @@ pnpm typecheck
 pnpm build
 ```
 
-## Verification
-
-A local build is valid when:
-
-- `pnpm typecheck` passes in both packages.
-- `pnpm build` passes and creates `dist` in both packages.
-- `pnpm test` passes in `core`.
-
 ## License
 
-Both packages are distributed under the MIT License.
-
-- [Core License](./core/LICENSE)
-- [UI Utils License](./ui-utils/LICENSE)
+MIT
