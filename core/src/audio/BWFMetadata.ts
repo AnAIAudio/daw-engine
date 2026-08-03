@@ -1,3 +1,5 @@
+import { BWF_ORIGINATOR_REFERENCE_PREFIX } from "../config/product-identifiers";
+
 /**
  * BWF (Broadcast Wave Format) metadata handler.
  *
@@ -364,11 +366,11 @@ export class BWFMetadata {
     const timeStr = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
 
     const sr = options?.sampleRate ?? 48000;
-    const codingHistory = `A=PCM,F=${sr},W=24,M=stereo,T=drop.ai\r\n`;
+    const codingHistory = `A=PCM,F=${sr},W=24,M=stereo,T=daw-engine\r\n`;
 
     return {
       description: options?.description ?? "",
-      originator: options?.originator ?? "drop.ai",
+      originator: options?.originator ?? "daw-engine",
       originatorReference: BWFMetadata.generateOriginatorReference(),
       originationDate: dateStr,
       originationTime: timeStr,
@@ -594,6 +596,6 @@ export class BWFMetadata {
   private static generateOriginatorReference(): string {
     const now = Date.now().toString(36);
     const rand = Math.random().toString(36).substring(2, 10);
-    return `DROPAI${now}${rand}`.substring(0, 32);
+    return `${BWF_ORIGINATOR_REFERENCE_PREFIX}${now}${rand}`.substring(0, 32);
   }
 }

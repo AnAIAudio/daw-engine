@@ -1,5 +1,5 @@
-import type { FrameCount } from "@drop-ai/core";
-import { ClockMode, formatClock } from "@drop-ai/core";
+import type { FrameCount } from "@daw-engine/core";
+import { ClockMode, formatClock } from "@daw-engine/core";
 import type { TimelineViewport } from "../viewport/TimelineViewport";
 
 // ---------------------------------------------------------------------------

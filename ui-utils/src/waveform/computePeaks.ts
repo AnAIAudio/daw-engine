@@ -1,4 +1,4 @@
-import type { PeakData } from "@drop-ai/core";
+import type { PeakData } from "@daw-engine/core";
 
 /**
  * Compute peak data from a raw `Float32Array` of audio samples.

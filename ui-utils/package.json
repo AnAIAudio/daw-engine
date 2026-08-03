@@ -1,7 +1,7 @@
 {
-  "name": "@drop-ai/ui-utils",
+  "name": "@daw-engine/ui-utils",
   "version": "1.0.0",
-  "description": "Framework-agnostic UI utilities for building DAW interfaces on top of @drop-ai/core",
+  "description": "Framework-agnostic UI utilities for building DAW interfaces on top of @daw-engine/core",
   "license": "MIT",
   "publishConfig": {
     "access": "public"
@@ -31,10 +31,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist",
+    "prepack": "npm run build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@drop-ai/core": "workspace:*"
+    "@daw-engine/core": "^1.0.0"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

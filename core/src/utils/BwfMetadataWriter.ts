@@ -58,7 +58,7 @@ export function buildBextChunk(data: BwfChunkData): Uint8Array {
   writeFixedString(chunk, H + 0, data.description || "", 256);
 
   // Originator (32 bytes, data offset 256)
-  writeFixedString(chunk, H + 256, data.originator || "drop.ai Web DAW", 32);
+  writeFixedString(chunk, H + 256, data.originator || "daw-engine Web DAW", 32);
 
   // OriginatorReference (32 bytes, data offset 288)
   writeFixedString(chunk, H + 288, data.originatorReference || "", 32);

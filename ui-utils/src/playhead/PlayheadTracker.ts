@@ -1,5 +1,5 @@
-import type { FrameCount } from "@drop-ai/core";
-import { Signal } from "@drop-ai/core";
+import type { FrameCount } from "@daw-engine/core";
+import { Signal } from "@daw-engine/core";
 import type { TimelineViewport } from "../viewport/TimelineViewport";
 
 // ---------------------------------------------------------------------------

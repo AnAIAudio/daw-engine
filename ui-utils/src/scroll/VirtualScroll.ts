@@ -1,4 +1,4 @@
-import { Signal } from "@drop-ai/core";
+import { Signal } from "@daw-engine/core";
 
 // ---------------------------------------------------------------------------
 // Types
