@@ -8,7 +8,8 @@ import { Signal } from "../lib/Signal";
  */
 export class SelectionHistory {
   private history: Set<string>[] = [];
-  private currentIndex: number = 0;
+  // commit, undo, redo가 같은 기준을 사용하도록 현재 snapshot의 배열 인덱스를 저장한다.
+  private currentSnapshotIndex: number = 0;
 
   public readonly changed = new Signal<void>();
 
@@ -18,7 +19,7 @@ export class SelectionHistory {
    */
   public begin(currentSelection: Set<string>): void {
     this.history = [new Set(currentSelection)];
-    this.currentIndex = 0;
+    this.currentSnapshotIndex = 0;
     this.changed.emit();
   }
 
@@ -28,11 +29,11 @@ export class SelectionHistory {
    */
   public commit(selectionSnapshot: Set<string>): void {
     // Trim forward history
-    if (this.currentIndex < this.history.length - 1) {
-      this.history = this.history.slice(0, this.currentIndex + 1);
+    if (this.currentSnapshotIndex < this.history.length - 1) {
+      this.history = this.history.slice(0, this.currentSnapshotIndex + 1);
     }
     this.history.push(new Set(selectionSnapshot));
-    this.currentIndex = this.history.length - 1;
+    this.currentSnapshotIndex = this.history.length - 1;
     this.changed.emit();
   }
 
@@ -42,8 +43,8 @@ export class SelectionHistory {
    */
   public undo(): Set<string> | null {
     if (!this.canUndo) return null;
-    this.currentIndex++;
-    const snapshot = this.history[this.history.length - 1 - this.currentIndex];
+    this.currentSnapshotIndex--;
+    const snapshot = this.history[this.currentSnapshotIndex];
     this.changed.emit();
     return snapshot ? new Set(snapshot) : null;
   }
@@ -54,17 +55,17 @@ export class SelectionHistory {
    */
   public redo(): Set<string> | null {
     if (!this.canRedo) return null;
-    this.currentIndex--;
-    const snapshot = this.history[this.history.length - 1 - this.currentIndex];
+    this.currentSnapshotIndex++;
+    const snapshot = this.history[this.currentSnapshotIndex];
     this.changed.emit();
     return snapshot ? new Set(snapshot) : null;
   }
 
   public get canUndo(): boolean {
-    return this.currentIndex < this.history.length - 1;
+    return this.currentSnapshotIndex > 0;
   }
 
   public get canRedo(): boolean {
-    return this.currentIndex > 0;
+    return this.currentSnapshotIndex < this.history.length - 1;
   }
 }
