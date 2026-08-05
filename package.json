@@ -1,0 +1,19 @@
+{
+  "name": "daw-engine-repository",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "scripts": {
+    "lint": "pnpm run lint:core && pnpm run lint:ui-utils",
+    "lint:core": "eslint \"core/src/**/*.ts\"",
+    "lint:ui-utils": "eslint \"ui-utils/src/**/*.ts\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.66.0"
+  }
+}

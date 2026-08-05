@@ -31,6 +31,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist",
+    "lint": "pnpm --dir .. run lint:core",
     "prepack": "npm run build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
