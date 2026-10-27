@@ -1,0 +1,888 @@
+{
+  "measuredAt": "2026-10-27T02:24:49.295Z",
+  "beforeCommit": "2478d56e3ad6e995d3cc45580e88b4f64f3f1873",
+  "checkoutCommit": "2478d56e3ad6e995d3cc45580e88b4f64f3f1873",
+  "afterSourceSha256": "faae69ebc741e03f780457de18899cab0f36a916d1cac5867e52d26c41eedba5",
+  "environment": {
+    "node": "v22.23.3",
+    "typescript": "5.9.3",
+    "os": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M4"
+  },
+  "method": {
+    "runs": 5,
+    "timeoutMs": 1000,
+    "audioSeconds": 1,
+    "warmupBlocks": 8,
+    "warmupBlockSize": 128,
+    "timing": "Sum of processBlock call durations; excludes source compilation, worker startup, PCM generation, slicing and progress messages. Timing covers synthetic PCM only; this is not a device or standards conformance test."
+  },
+  "results": [
+    {
+      "name": "48k stereo / 128",
+      "sampleRate": 48000,
+      "channelCount": 2,
+      "blockSize": 128,
+      "audioSeconds": 1,
+      "expectedBlocks": 375,
+      "before": {
+        "completedRuns": 0,
+        "timedOutRuns": 5,
+        "completedBlocks": [
+          37,
+          37,
+          37,
+          37,
+          37
+        ],
+        "stalledBlock": 38,
+        "samples": [
+          {
+            "status": "timeout",
+            "completedBlocks": 37,
+            "stalledBlock": 38,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 37,
+            "stalledBlock": 38,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 37,
+            "stalledBlock": 38,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 37,
+            "stalledBlock": 38,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 37,
+            "stalledBlock": 38,
+            "timeoutMs": 1000
+          }
+        ]
+      },
+      "after": {
+        "completedRuns": 5,
+        "timedOutRuns": 0,
+        "completedBlocks": [
+          375,
+          375,
+          375,
+          375,
+          375
+        ],
+        "medianProcessingMs": 8.019717000008313,
+        "maxBlockMs": 0.10758299999997689,
+        "samples": [
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 8.141252999991593,
+            "maxBlockMs": 0.10474999999951251,
+            "reading": {
+              "momentary": -19.41474603216499,
+              "shortTerm": -19.41440440142798,
+              "integrated": -20.10540440142798,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 7.875412999981563,
+            "maxBlockMs": 0.10758299999997689,
+            "reading": {
+              "momentary": -19.41474603216499,
+              "shortTerm": -19.41440440142798,
+              "integrated": -20.10540440142798,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 8.34984500000337,
+            "maxBlockMs": 0.07920799999919836,
+            "reading": {
+              "momentary": -19.41474603216499,
+              "shortTerm": -19.41440440142798,
+              "integrated": -20.10540440142798,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 8.019717000008313,
+            "maxBlockMs": 0.1029579999994894,
+            "reading": {
+              "momentary": -19.41474603216499,
+              "shortTerm": -19.41440440142798,
+              "integrated": -20.10540440142798,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 7.597754999990684,
+            "maxBlockMs": 0.09395900000072288,
+            "reading": {
+              "momentary": -19.41474603216499,
+              "shortTerm": -19.41440440142798,
+              "integrated": -20.10540440142798,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "48k stereo / 256",
+      "sampleRate": 48000,
+      "channelCount": 2,
+      "blockSize": 256,
+      "audioSeconds": 1,
+      "expectedBlocks": 188,
+      "before": {
+        "completedRuns": 0,
+        "timedOutRuns": 5,
+        "completedBlocks": [
+          18,
+          18,
+          18,
+          18,
+          18
+        ],
+        "stalledBlock": 19,
+        "samples": [
+          {
+            "status": "timeout",
+            "completedBlocks": 18,
+            "stalledBlock": 19,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 18,
+            "stalledBlock": 19,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 18,
+            "stalledBlock": 19,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 18,
+            "stalledBlock": 19,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 18,
+            "stalledBlock": 19,
+            "timeoutMs": 1000
+          }
+        ]
+      },
+      "after": {
+        "completedRuns": 5,
+        "timedOutRuns": 0,
+        "completedBlocks": [
+          188,
+          188,
+          188,
+          188,
+          188
+        ],
+        "medianProcessingMs": 7.989075000010416,
+        "maxBlockMs": 0.14916700000139826,
+        "samples": [
+          {
+            "status": "complete",
+            "completedBlocks": 188,
+            "processingMs": 8.243999999996959,
+            "maxBlockMs": 0.13787500000034925,
+            "reading": {
+              "momentary": -19.41474603216499,
+              "shortTerm": -19.414404401427976,
+              "integrated": -20.10540440142798,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 188,
+            "processingMs": 7.989075000010416,
+            "maxBlockMs": 0.13583299999845622,
+            "reading": {
+              "momentary": -19.41474603216499,
+              "shortTerm": -19.414404401427976,
+              "integrated": -20.10540440142798,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 188,
+            "processingMs": 7.904213000003438,
+            "maxBlockMs": 0.14916700000139826,
+            "reading": {
+              "momentary": -19.41474603216499,
+              "shortTerm": -19.414404401427976,
+              "integrated": -20.10540440142798,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 188,
+            "processingMs": 7.9902060000040365,
+            "maxBlockMs": 0.12120900000081747,
+            "reading": {
+              "momentary": -19.41474603216499,
+              "shortTerm": -19.414404401427976,
+              "integrated": -20.10540440142798,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 188,
+            "processingMs": 7.869131999999809,
+            "maxBlockMs": 0.129917000000205,
+            "reading": {
+              "momentary": -19.41474603216499,
+              "shortTerm": -19.414404401427976,
+              "integrated": -20.10540440142798,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "44.1k stereo / 128",
+      "sampleRate": 44100,
+      "channelCount": 2,
+      "blockSize": 128,
+      "audioSeconds": 1,
+      "expectedBlocks": 345,
+      "before": {
+        "completedRuns": 0,
+        "timedOutRuns": 5,
+        "completedBlocks": [
+          34,
+          34,
+          34,
+          34,
+          34
+        ],
+        "stalledBlock": 35,
+        "samples": [
+          {
+            "status": "timeout",
+            "completedBlocks": 34,
+            "stalledBlock": 35,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 34,
+            "stalledBlock": 35,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 34,
+            "stalledBlock": 35,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 34,
+            "stalledBlock": 35,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 34,
+            "stalledBlock": 35,
+            "timeoutMs": 1000
+          }
+        ]
+      },
+      "after": {
+        "completedRuns": 5,
+        "timedOutRuns": 0,
+        "completedBlocks": [
+          345,
+          345,
+          345,
+          345,
+          345
+        ],
+        "medianProcessingMs": 7.601005000005898,
+        "maxBlockMs": 0.18233300000065356,
+        "samples": [
+          {
+            "status": "complete",
+            "completedBlocks": 345,
+            "processingMs": 7.865832000003138,
+            "maxBlockMs": 0.18233300000065356,
+            "reading": {
+              "momentary": -19.41483114545481,
+              "shortTerm": -19.414502834036984,
+              "integrated": -20.105502834036983,
+              "range": 0,
+              "truePeak": -16.547529529435913
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 345,
+            "processingMs": 7.588463999980377,
+            "maxBlockMs": 0.10095899999942048,
+            "reading": {
+              "momentary": -19.41483114545481,
+              "shortTerm": -19.414502834036984,
+              "integrated": -20.105502834036983,
+              "range": 0,
+              "truePeak": -16.547529529435913
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 345,
+            "processingMs": 7.5948789999984,
+            "maxBlockMs": 0.11095799999930023,
+            "reading": {
+              "momentary": -19.41483114545481,
+              "shortTerm": -19.414502834036984,
+              "integrated": -20.105502834036983,
+              "range": 0,
+              "truePeak": -16.547529529435913
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 345,
+            "processingMs": 7.601005000005898,
+            "maxBlockMs": 0.10337500000059663,
+            "reading": {
+              "momentary": -19.41483114545481,
+              "shortTerm": -19.414502834036984,
+              "integrated": -20.105502834036983,
+              "range": 0,
+              "truePeak": -16.547529529435913
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 345,
+            "processingMs": 7.647835000007035,
+            "maxBlockMs": 0.1040000000011787,
+            "reading": {
+              "momentary": -19.41483114545481,
+              "shortTerm": -19.414502834036984,
+              "integrated": -20.105502834036983,
+              "range": 0,
+              "truePeak": -16.547529529435913
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "48k 6-channel / 128",
+      "sampleRate": 48000,
+      "channelCount": 6,
+      "blockSize": 128,
+      "audioSeconds": 1,
+      "expectedBlocks": 375,
+      "before": {
+        "completedRuns": 0,
+        "timedOutRuns": 5,
+        "completedBlocks": [
+          37,
+          37,
+          37,
+          37,
+          37
+        ],
+        "stalledBlock": 38,
+        "samples": [
+          {
+            "status": "timeout",
+            "completedBlocks": 37,
+            "stalledBlock": 38,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 37,
+            "stalledBlock": 38,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 37,
+            "stalledBlock": 38,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 37,
+            "stalledBlock": 38,
+            "timeoutMs": 1000
+          },
+          {
+            "status": "timeout",
+            "completedBlocks": 37,
+            "stalledBlock": 38,
+            "timeoutMs": 1000
+          }
+        ]
+      },
+      "after": {
+        "completedRuns": 5,
+        "timedOutRuns": 0,
+        "completedBlocks": [
+          375,
+          375,
+          375,
+          375,
+          375
+        ],
+        "medianProcessingMs": 19.374211000042123,
+        "maxBlockMs": 0.25587500000256114,
+        "samples": [
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 19.81941399999414,
+            "maxBlockMs": 0.25587500000256114,
+            "reading": {
+              "momentary": -9.171630051409613,
+              "shortTerm": -9.171515537402662,
+              "integrated": -9.862515537402663,
+              "range": 0,
+              "truePeak": -10.893478396945195
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 20.02804700001434,
+            "maxBlockMs": 0.158000000003085,
+            "reading": {
+              "momentary": -9.171630051409613,
+              "shortTerm": -9.171515537402662,
+              "integrated": -9.862515537402663,
+              "range": 0,
+              "truePeak": -10.893478396945195
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 19.374211000042123,
+            "maxBlockMs": 0.14549999999871943,
+            "reading": {
+              "momentary": -9.171630051409613,
+              "shortTerm": -9.171515537402662,
+              "integrated": -9.862515537402663,
+              "range": 0,
+              "truePeak": -10.893478396945195
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 19.152249999999185,
+            "maxBlockMs": 0.1410409999989497,
+            "reading": {
+              "momentary": -9.171630051409613,
+              "shortTerm": -9.171515537402662,
+              "integrated": -9.862515537402663,
+              "range": 0,
+              "truePeak": -10.893478396945195
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 19.04692100001921,
+            "maxBlockMs": 0.14920899999924586,
+            "reading": {
+              "momentary": -9.171630051409613,
+              "shortTerm": -9.171515537402662,
+              "integrated": -9.862515537402663,
+              "range": 0,
+              "truePeak": -10.893478396945195
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "48k mono / 128",
+      "sampleRate": 48000,
+      "channelCount": 1,
+      "blockSize": 128,
+      "audioSeconds": 1,
+      "expectedBlocks": 375,
+      "before": {
+        "completedRuns": 5,
+        "timedOutRuns": 0,
+        "completedBlocks": [
+          375,
+          375,
+          375,
+          375,
+          375
+        ],
+        "medianProcessingMs": 4.056536000029155,
+        "maxBlockMs": 0.09441700000024866,
+        "samples": [
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 4.126865999995061,
+            "maxBlockMs": 0.0930000000007567,
+            "reading": {
+              "momentary": -23.750299391787337,
+              "shortTerm": -23.752092035045184,
+              "integrated": -24.44309203504518,
+              "range": 0,
+              "truePeak": -18.820713964042007
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 4.038330999996106,
+            "maxBlockMs": 0.0805000000000291,
+            "reading": {
+              "momentary": -23.750299391787337,
+              "shortTerm": -23.752092035045184,
+              "integrated": -24.44309203504518,
+              "range": 0,
+              "truePeak": -18.820713964042007
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 4.056536000029155,
+            "maxBlockMs": 0.08458299999983865,
+            "reading": {
+              "momentary": -23.750299391787337,
+              "shortTerm": -23.752092035045184,
+              "integrated": -24.44309203504518,
+              "range": 0,
+              "truePeak": -18.820713964042007
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 4.066082999957871,
+            "maxBlockMs": 0.081583999999566,
+            "reading": {
+              "momentary": -23.750299391787337,
+              "shortTerm": -23.752092035045184,
+              "integrated": -24.44309203504518,
+              "range": 0,
+              "truePeak": -18.820713964042007
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 3.96412300000884,
+            "maxBlockMs": 0.09441700000024866,
+            "reading": {
+              "momentary": -23.750299391787337,
+              "shortTerm": -23.752092035045184,
+              "integrated": -24.44309203504518,
+              "range": 0,
+              "truePeak": -18.820713964042007
+            }
+          }
+        ]
+      },
+      "after": {
+        "completedRuns": 5,
+        "timedOutRuns": 0,
+        "completedBlocks": [
+          375,
+          375,
+          375,
+          375,
+          375
+        ],
+        "medianProcessingMs": 4.174836000009236,
+        "maxBlockMs": 0.10983299999861629,
+        "samples": [
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 4.111839000001055,
+            "maxBlockMs": 0.08908399999927497,
+            "reading": {
+              "momentary": -23.750299391787337,
+              "shortTerm": -23.752092035045184,
+              "integrated": -24.44309203504518,
+              "range": 0,
+              "truePeak": -18.820713964042007
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 4.174836000009236,
+            "maxBlockMs": 0.09166700000059791,
+            "reading": {
+              "momentary": -23.750299391787337,
+              "shortTerm": -23.752092035045184,
+              "integrated": -24.44309203504518,
+              "range": 0,
+              "truePeak": -18.820713964042007
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 4.265170000002399,
+            "maxBlockMs": 0.10983299999861629,
+            "reading": {
+              "momentary": -23.750299391787337,
+              "shortTerm": -23.752092035045184,
+              "integrated": -24.44309203504518,
+              "range": 0,
+              "truePeak": -18.820713964042007
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 4.231172000003426,
+            "maxBlockMs": 0.0912499999976717,
+            "reading": {
+              "momentary": -23.750299391787337,
+              "shortTerm": -23.752092035045184,
+              "integrated": -24.44309203504518,
+              "range": 0,
+              "truePeak": -18.820713964042007
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 375,
+            "processingMs": 4.1611220000449975,
+            "maxBlockMs": 0.08579100000133622,
+            "reading": {
+              "momentary": -23.750299391787337,
+              "shortTerm": -23.752092035045184,
+              "integrated": -24.44309203504518,
+              "range": 0,
+              "truePeak": -18.820713964042007
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "48k stereo / 480",
+      "sampleRate": 48000,
+      "channelCount": 2,
+      "blockSize": 480,
+      "audioSeconds": 1,
+      "expectedBlocks": 100,
+      "before": {
+        "completedRuns": 5,
+        "timedOutRuns": 0,
+        "completedBlocks": [
+          100,
+          100,
+          100,
+          100,
+          100
+        ],
+        "medianProcessingMs": 7.034707000013441,
+        "maxBlockMs": 0.2199579999978596,
+        "samples": [
+          {
+            "status": "complete",
+            "completedBlocks": 100,
+            "processingMs": 7.023989999997866,
+            "maxBlockMs": 0.14712499999950523,
+            "reading": {
+              "momentary": -19.411674316087584,
+              "shortTerm": -19.441389422907676,
+              "integrated": -20.132389422907675,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 100,
+            "processingMs": 7.824034999975993,
+            "maxBlockMs": 0.2199579999978596,
+            "reading": {
+              "momentary": -19.411674316087584,
+              "shortTerm": -19.441389422907676,
+              "integrated": -20.132389422907675,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 100,
+            "processingMs": 7.0961650000099326,
+            "maxBlockMs": 0.18091700000150013,
+            "reading": {
+              "momentary": -19.411674316087584,
+              "shortTerm": -19.441389422907676,
+              "integrated": -20.132389422907675,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 100,
+            "processingMs": 6.919258999991143,
+            "maxBlockMs": 0.159166000001278,
+            "reading": {
+              "momentary": -19.411674316087584,
+              "shortTerm": -19.441389422907676,
+              "integrated": -20.132389422907675,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 100,
+            "processingMs": 7.034707000013441,
+            "maxBlockMs": 0.1704589999972086,
+            "reading": {
+              "momentary": -19.411674316087584,
+              "shortTerm": -19.441389422907676,
+              "integrated": -20.132389422907675,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          }
+        ]
+      },
+      "after": {
+        "completedRuns": 5,
+        "timedOutRuns": 0,
+        "completedBlocks": [
+          100,
+          100,
+          100,
+          100,
+          100
+        ],
+        "medianProcessingMs": 7.468293000019912,
+        "maxBlockMs": 0.25645799999983865,
+        "samples": [
+          {
+            "status": "complete",
+            "completedBlocks": 100,
+            "processingMs": 7.468293000019912,
+            "maxBlockMs": 0.17549999999755528,
+            "reading": {
+              "momentary": -19.41474603216499,
+              "shortTerm": -19.414404401427976,
+              "integrated": -20.10540440142798,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 100,
+            "processingMs": 7.42187100000956,
+            "maxBlockMs": 0.15741699999853154,
+            "reading": {
+              "momentary": -19.41474603216499,
+              "shortTerm": -19.414404401427976,
+              "integrated": -20.10540440142798,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 100,
+            "processingMs": 7.448999000007461,
+            "maxBlockMs": 0.15433299999858718,
+            "reading": {
+              "momentary": -19.41474603216499,
+              "shortTerm": -19.414404401427976,
+              "integrated": -20.10540440142798,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 100,
+            "processingMs": 7.595332000011695,
+            "maxBlockMs": 0.1568330000009155,
+            "reading": {
+              "momentary": -19.41474603216499,
+              "shortTerm": -19.414404401427976,
+              "integrated": -20.10540440142798,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          },
+          {
+            "status": "complete",
+            "completedBlocks": 100,
+            "processingMs": 7.538046000019676,
+            "maxBlockMs": 0.25645799999983865,
+            "reading": {
+              "momentary": -19.41474603216499,
+              "shortTerm": -19.414404401427976,
+              "integrated": -20.10540440142798,
+              "range": 0,
+              "truePeak": -16.54579801342207
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "verifiedAfterCommit": "9c5aa99610dd2f05bbc98cc28e5d4faa6f715d90"
+}
