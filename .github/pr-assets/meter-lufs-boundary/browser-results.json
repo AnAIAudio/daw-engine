@@ -1,0 +1,33 @@
+{
+  "browser": "156.0.8078.48",
+  "viewport": {
+    "width": 1440,
+    "height": 1040
+  },
+  "results": [
+    {
+      "version": "before",
+      "revision": "2478d56e3ad6e995d3cc45580e88b4f64f3f1873",
+      "status": "timeout",
+      "completedBlocks": 37,
+      "enteredBlock": 38,
+      "timeoutMs": 1000
+    },
+    {
+      "version": "after",
+      "revision": "9c5aa99610dd2f05bbc98cc28e5d4faa6f715d90",
+      "status": "complete",
+      "type": "complete",
+      "completedBlocks": 375,
+      "processingMs": 7.600000008940697,
+      "maxBlockMs": 0.3999999985098839,
+      "reading": {
+        "momentary": -19.41474603216499,
+        "shortTerm": -19.414404401427976,
+        "integrated": -20.10540440142798,
+        "range": 0,
+        "truePeak": -16.54579801342207
+      }
+    }
+  ]
+}
